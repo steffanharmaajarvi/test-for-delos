@@ -1,0 +1,40 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: payments
+      POSTGRES_PASSWORD: payments
+      POSTGRES_DB: payments
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U payments -d payments"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  app:
+    build: .
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    environment:
+      DATABASE_URL: postgres://payments:payments@postgres:5432/payments?sslmode=disable
+      HTTP_ADDR: ":8080"
+      CONFIRMATIONS: "12"
+      POLL_INTERVAL: 1s
+      # id:name:api_key:fee_bps — demo keys, never reuse outside local runs
+      PARTNERS: "acme:Acme Shop:acme-secret-key-0001:100,globex:Globex Games:globex-secret-key-0002:250"
+      AML_BLACKLIST: "0xbad0000000000000000000000000000000000bad"
+      AML_EXCHANGES: "0xe000000000000000000000000000000000000e00"
+      AML_RETRY_BACKOFF: 5s
+      AML_MAX_BACKOFF: 1m
+      SIM_ENABLED: "true"
+    restart: unless-stopped
+
+volumes:
+  pgdata:
